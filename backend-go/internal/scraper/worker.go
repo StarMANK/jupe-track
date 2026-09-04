@@ -219,8 +219,8 @@ func startWorkerLoop() {
 				}
 
 				// Push to TSDB (only if we scraped anything)
-				if len(filteredBgpData) > 0 || len(filteredIfaceData) > 0 {
-					PushToVictoriaMetrics(filteredBgpData, filteredIfaceData)
+				if len(filteredBgpData) > 0 || len(filteredIfaceData) > 0 || devStatus != nil {
+					PushToVictoriaMetrics(filteredBgpData, filteredIfaceData, devStatus)
 				}
 
 				// Update last scrape timestamps in DB
@@ -251,7 +251,7 @@ func startWorkerLoop() {
 }
 
 // PushToVictoriaMetrics converts stats to Prometheus text format and POSTs to TSDB
-func PushToVictoriaMetrics(bgp []cache.BGPPeer, ifaces []cache.InterfaceStat) {
+func PushToVictoriaMetrics(bgp []cache.BGPPeer, ifaces []cache.InterfaceStat, devStatus *cache.DeviceStatus) {
 	var buffer bytes.Buffer
 
 	for _, p := range bgp {
@@ -260,8 +260,17 @@ func PushToVictoriaMetrics(bgp []cache.BGPPeer, ifaces []cache.InterfaceStat) {
 	}
 
 	for _, i := range ifaces {
-		buffer.WriteString(fmt.Sprintf("jupetrack_interface_bps_in{interface=\"%s\", type=\"%s\"} %d\n", i.Name, i.Type, i.BpsIn))
-		buffer.WriteString(fmt.Sprintf("jupetrack_interface_bps_out{interface=\"%s\", type=\"%s\"} %d\n", i.Name, i.Type, i.BpsOut))
+		cleanDesc := strings.ReplaceAll(i.Description, `"`, `\"`)
+		buffer.WriteString(fmt.Sprintf("jupetrack_interface_bps_in{interface=\"%s\", description=\"%s\", type=\"%s\"} %d\n", i.Name, cleanDesc, i.Type, i.BpsIn))
+		buffer.WriteString(fmt.Sprintf("jupetrack_interface_bps_out{interface=\"%s\", description=\"%s\", type=\"%s\"} %d\n", i.Name, cleanDesc, i.Type, i.BpsOut))
+	}
+
+	if devStatus != nil {
+		buffer.WriteString(fmt.Sprintf("jupetrack_device_cpu_usage{hw_model=\"%s\"} %.2f\n", devStatus.HWModel, devStatus.CPUUsage))
+		buffer.WriteString(fmt.Sprintf("jupetrack_device_cpu_idle{hw_model=\"%s\"} %.2f\n", devStatus.HWModel, devStatus.CPUIdle))
+		buffer.WriteString(fmt.Sprintf("jupetrack_device_memory_utilization{hw_model=\"%s\"} %.2f\n", devStatus.HWModel, devStatus.MemoryUtilization))
+		buffer.WriteString(fmt.Sprintf("jupetrack_device_re_temperature{hw_model=\"%s\"} %.2f\n", devStatus.HWModel, devStatus.RETemperature))
+		buffer.WriteString(fmt.Sprintf("jupetrack_device_uptime_seconds{hw_model=\"%s\"} %d\n", devStatus.HWModel, devStatus.UptimeSeconds))
 	}
 
 	if buffer.Len() == 0 {
@@ -383,8 +392,9 @@ func TriggerScrape() {
 			}
 		}
 
-		if (enableBGP && len(allBgpData) > 0) || (enableInterfaces && len(ifaceData) > 0) {
-			PushToVictoriaMetrics(allBgpData, ifaceData)
+		devStatus := cache.GlobalCache.GetDeviceStatus()
+		if (enableBGP && len(allBgpData) > 0) || (enableInterfaces && len(ifaceData) > 0) || devStatus != nil {
+			PushToVictoriaMetrics(allBgpData, ifaceData, devStatus)
 		}
 
 		log.Println("Worker: Manual scrape cycle completed.")

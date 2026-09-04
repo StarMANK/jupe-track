@@ -50,7 +50,7 @@ export function ChartDialog({
         aria-hidden="true"
       />
       
-      {/* Dialog Container - Fully responsive per UI/UX Pro Max §5 Layout & Responsive for portrait/landscape */}
+      {/* Dialog Container - Responsive per UI/UX Pro Max §5 Layout & Responsive guidelines */}
       <div
         data-chart-dialog-wrapper
         role="dialog"
@@ -59,7 +59,7 @@ export function ChartDialog({
         aria-describedby={description ? "chart-dialog-description" : undefined}
         className="relative w-full rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 ease-out overflow-hidden"
         style={{ 
-          maxWidth: 'min(100vw - 1rem, min(90%, 72rem))',
+          maxWidth: 'min(95vw, min(90%, 80rem))',
           maxHeight: 'calc(min(90vh, 80dvh))',
           margin: 'auto',
           width: 'fit-content',
@@ -107,12 +107,12 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content - Portrait-optimized fully responsive container */}
+        {/* Chart Content - Fully responsive container that adapts to page/resolution */}
         <div 
-          className="w-full h-full" 
+          className="w-full" 
           style={{ 
             height: 'auto',
-            maxHeight: 'calc(90vh - 150px)',
+            maxHeight: 'calc(min(90vh, 80dvh) - 120px)',
             boxSizing: 'border-box', 
             padding: '0.5rem 1rem',
           }}
