@@ -8,6 +8,13 @@ import HeaderRefreshButton from "@/components/ui/HeaderRefreshButton";
 import AdminGuard from "@/components/ui/AdminGuard";
 import { isAdminPath } from "@/lib/rbac";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const PUBLIC_PATHS = ["/login"];
 
@@ -22,6 +29,9 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const [passError, setPassError] = React.useState("");
   const [passSuccess, setPassSuccess] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const menuButtonRef = React.useRef<HTMLButtonElement>(null);
+  const passwordButtonRef = React.useRef<HTMLButtonElement>(null);
+  const currentPasswordRef = React.useRef<HTMLInputElement>(null);
 
   const isPublic = PUBLIC_PATHS.some(p => pathname === p);
 
@@ -94,47 +104,43 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   // While restoring session, show a minimal loading screen
   if (isLoading) {
     return (
-      <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--color-background)",
-        flexDirection: "column",
-        gap: "1rem",
-      }}>
-        <div style={{
-          width: 40, height: 40,
-          border: "2px solid color-mix(in oklab, var(--color-primary) 25%, transparent)",
-          borderTop: "2px solid var(--color-primary)",
-          borderRadius: "50%",
-          animation: "spin 0.8s linear infinite",
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <p style={{ color: "var(--color-on-surface-variant)", fontSize: "0.85rem" }}>Restoring session...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background" role="status" aria-label="Restoring session">
+        <div className="size-10 rounded-full border-2 border-primary/25 border-t-primary animate-spin" />
+        <p className="text-sm text-on-surface-variant">Restoring session...</p>
       </div>
     );
   }
 
   // Authenticated app shell
   return (
-    <div className="flex w-full min-h-screen">
+    <div
+      className="flex w-full min-h-screen"
+      style={{
+        "--sidebar-width": isCollapsed ? "5rem" : "16rem",
+        "--shell-main-padding": "1rem",
+      } as React.CSSProperties}
+    >
       <Sidebar 
         isCollapsed={isCollapsed} 
         setIsCollapsed={handleSetCollapsed} 
         isMobileOpen={isMobileOpen} 
         setIsMobileOpen={setIsMobileOpen} 
+        menuButtonRef={menuButtonRef}
       />
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 overflow-hidden h-screen ${
-        isCollapsed ? 'md:pl-28' : 'md:pl-[280px]'
+        'md:pl-[calc(var(--sidebar-width)+var(--shell-main-padding))]'
       } pl-0`}>
-        <header className="h-16 flex items-center justify-between px-4 md:px-8 border-b border-[#2A2E35] bg-transparent z-20">
+        <header className="h-16 flex items-center justify-between px-4 md:px-8 border-b border-outline-variant bg-background z-20">
           <div className="flex items-center gap-2">
             <button 
+              ref={menuButtonRef}
               onClick={() => setIsMobileOpen(true)}
-              className="md:hidden text-on-surface-variant hover:text-on-surface p-1.5 mr-1 bg-white/5 rounded-lg"
+              aria-label="Open navigation"
+              aria-expanded={isMobileOpen}
+              aria-controls="primary-navigation-drawer"
+              className="mr-1 flex size-11 items-center justify-center rounded border border-outline-variant bg-surface-container text-on-surface-variant hover:text-on-surface md:hidden"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="6" x2="21" y2="6" />
                 <line x1="3" y1="18" x2="21" y2="18" />
@@ -153,33 +159,35 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
             <HeaderRefreshButton />
             <ThemeToggle />
             <button
+              ref={passwordButtonRef}
               onClick={() => setIsPasswordModalOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-on-surface-variant hover:text-primary transition-colors px-2 py-1.5 rounded-md hover:bg-primary/10"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded px-2 text-xs text-on-surface-variant transition-colors hover:bg-primary/10 hover:text-primary"
+              aria-label="Change Password"
               title="Change Password"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              Password
+              <span className="hidden lg:inline">Password</span>
             </button>
             <button
               onClick={logout}
-              className="flex items-center gap-1.5 text-xs text-on-surface-variant hover:text-error transition-colors px-2 py-1.5 rounded-md hover:bg-error/10"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded px-2 text-xs text-on-surface-variant transition-colors hover:bg-error/10 hover:text-error"
+              aria-label="Sign out"
               title="Sign out"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                 <polyline points="16 17 21 12 16 7"/>
                 <line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
-              Sign out
+              <span className="hidden lg:inline">Sign out</span>
             </button>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6 md:pt-2 overflow-hidden relative">
-          <div className="h-full w-full bg-surface-container-lowest/30 border border-[#2A2E35] rounded overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 blur-[120px] rounded-full pointer-events-none mix-blend-screen transform translate-x-1/3 -translate-y-1/3" />
+        <main className="flex-1 p-4 md:p-[var(--shell-main-padding)] md:pt-2 overflow-hidden relative">
+          <div className="h-full w-full bg-surface-container-lowest border border-outline-variant rounded overflow-hidden relative">
             <div className="h-full w-full overflow-y-auto p-4 md:p-8 relative z-10">
               {isAdminPath(pathname) ? <AdminGuard>{children}</AdminGuard> : children}
             </div>
@@ -187,54 +195,66 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         </main>
       </div>
 
-      {/* Change Password Modal */}
-      {isPasswordModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="glass-panel w-full max-w-md p-6 animate-slide-up relative">
-            <button
-              onClick={() => setIsPasswordModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-            
-            <h2 className="text-xl font-bold mb-4">Change Password</h2>
-            
-            {passError && <div className="p-3 mb-4 rounded-lg bg-error/10 border border-error/20 text-error text-sm">{passError}</div>}
-            {passSuccess && <div className="p-3 mb-4 rounded-lg bg-primary/10 border border-primary/20 text-primary text-sm">Password updated successfully!</div>}
+      <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+        <DialogContent
+          className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto p-6"
+          initialFocus={currentPasswordRef}
+          finalFocus={passwordButtonRef}
+        >
+          <DialogHeader className="pr-12">
+            <DialogTitle id="password-dialog-title" className="text-xl font-bold">
+              Change Password
+            </DialogTitle>
+            <DialogDescription>
+              Use at least 12 characters for the new password.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handlePasswordChange} className="space-y-4">
+          {passError && <div id="password-error" role="alert" className="rounded border border-error/20 bg-error/10 p-3 text-sm text-error">{passError}</div>}
+          {passSuccess && <div role="status" className="rounded border border-primary/20 bg-primary/10 p-3 text-sm text-primary">Password updated successfully!</div>}
+
+          <form onSubmit={handlePasswordChange} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-on-surface-variant mb-1">Current Password</label>
+                <label htmlFor="current-password" className="block text-xs font-medium text-on-surface-variant mb-1">Current Password</label>
                 <input
+                  ref={currentPasswordRef}
+                  id="current-password"
                   type="password"
                   value={passwords.current}
                   onChange={e => setPasswords({...passwords, current: e.target.value})}
-                  className="w-full bg-surface-container-high border border-[#2A2E35] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary text-on-surface"
+                  className="w-full bg-surface-container-high border border-outline-variant rounded px-3 py-2 text-sm focus:outline-none focus:border-primary text-on-surface"
                   required
+                  aria-invalid={!!passError}
+                  aria-describedby={passError ? "password-error" : undefined}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-on-surface-variant mb-1">New Password</label>
+                  <label htmlFor="new-password" className="block text-xs font-medium text-on-surface-variant mb-1">New Password</label>
                   <input
+                    id="new-password"
                     type="password"
                     value={passwords.new}
                     onChange={e => setPasswords({...passwords, new: e.target.value})}
-                    className="w-full bg-surface-container-high border border-[#2A2E35] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary text-on-surface"
+                    className="w-full bg-surface-container-high border border-outline-variant rounded px-3 py-2 text-sm focus:outline-none focus:border-primary text-on-surface"
                     required
                     minLength={12}
+                    aria-invalid={!!passError}
+                    aria-describedby={passError ? "password-error" : undefined}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-on-surface-variant mb-1">Confirm New</label>
+                  <label htmlFor="confirm-password" className="block text-xs font-medium text-on-surface-variant mb-1">Confirm New</label>
                   <input
+                    id="confirm-password"
                     type="password"
                     value={passwords.confirm}
                     onChange={e => setPasswords({...passwords, confirm: e.target.value})}
-                    className="w-full bg-surface-container-high border border-[#2A2E35] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary text-on-surface"
+                    className="w-full bg-surface-container-high border border-outline-variant rounded px-3 py-2 text-sm focus:outline-none focus:border-primary text-on-surface"
                     required
                     minLength={12}
+                    aria-invalid={!!passError}
+                    aria-describedby={passError ? "password-error" : undefined}
                   />
                 </div>
               </div>
@@ -247,10 +267,9 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
                   {isSubmitting ? "Updating..." : "Update Password"}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

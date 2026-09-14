@@ -19,9 +19,9 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex items-center justify-center h-full w-full p-6">
-      <div className="glass-panel max-w-md w-full text-center flex flex-col items-center gap-4">
-        <div className="w-12 h-12 rounded-full bg-error/10 border border-error/30 flex items-center justify-center text-error">
-          <ShieldAlert size={24} />
+      <div className="flex w-full max-w-md flex-col items-center gap-4 rounded border border-outline-variant bg-surface-container-low p-6 text-center shadow-none">
+        <div className="flex size-12 items-center justify-center rounded border border-error/30 bg-error/10 text-error">
+          <ShieldAlert aria-hidden="true" size={24} />
         </div>
         <div>
           <h2 className="text-lg font-bold text-on-surface mb-1">Admin access required</h2>

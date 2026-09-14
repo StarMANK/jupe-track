@@ -14,12 +14,16 @@ interface SidebarProps {
   setIsCollapsed: (val: boolean) => void;
   isMobileOpen: boolean;
   setIsMobileOpen: (val: boolean) => void;
+  menuButtonRef: React.RefObject<HTMLButtonElement | null>;
 }
 
-const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }: SidebarProps) => {
+const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen, menuButtonRef }: SidebarProps) => {
   const pathname = usePathname();
   const { user } = useAuth();
   const [lastScrape, setLastScrape] = React.useState<string | null>(null);
+  const drawerRef = React.useRef<HTMLElement>(null);
+  const closeButtonRef = React.useRef<HTMLButtonElement>(null);
+  const wasMobileOpen = React.useRef(false);
 
   const { isConnected } = useWebSocket();
   React.useEffect(() => {
@@ -32,6 +36,35 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
     }).catch(() => {});
     return () => { alive = false; };
   }, [isConnected]);
+
+  React.useEffect(() => {
+    if (isMobileOpen) {
+      closeButtonRef.current?.focus();
+      const closeOnEscape = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') setIsMobileOpen(false);
+        if (event.key !== 'Tab') return;
+
+        const focusable = drawerRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable?.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      };
+      document.addEventListener('keydown', closeOnEscape);
+      wasMobileOpen.current = true;
+      return () => document.removeEventListener('keydown', closeOnEscape);
+    }
+    if (wasMobileOpen.current) menuButtonRef.current?.focus();
+    wasMobileOpen.current = false;
+  }, [isMobileOpen, menuButtonRef, setIsMobileOpen]);
 
   const menuGroups = [
     {
@@ -76,24 +109,31 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
       {/* Mobile Drawer Overlay */}
       {isMobileOpen && (
         <div 
-          className="fixed inset-0 bg-surface-container-lowest/80 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-surface-dim/80 z-40 md:hidden"
+          aria-hidden="true"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
-      <aside className={`h-[calc(100vh-2rem)] border border-[#2A2E35] bg-surface-container-low backdrop-blur-xl flex flex-col fixed top-4 z-50 rounded shadow-none transition-all duration-300 overflow-hidden ${
-        isMobileOpen ? 'left-4 w-64' : '-left-72 md:left-4'
+      <aside
+        ref={drawerRef}
+        id="primary-navigation-drawer"
+        aria-label="Main navigation"
+        aria-hidden={!isMobileOpen ? undefined : false}
+        role={isMobileOpen ? 'dialog' : undefined}
+        aria-modal={isMobileOpen ? true : undefined}
+        className={`h-[calc(100vh-2rem)] border border-outline-variant bg-surface-container-low flex flex-col fixed top-4 z-50 rounded transition-all duration-300 overflow-hidden ${
+        isMobileOpen ? 'visible left-4 w-64' : 'invisible -left-72 md:visible md:left-4'
       } ${
-        isCollapsed ? 'md:w-20' : 'md:w-64'
+        'md:left-[var(--shell-main-padding)] md:w-[var(--sidebar-width)]'
       }`}>
-        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
         {/* Header / Brand Logo */}
-        <div className="h-16 flex items-center justify-between px-4 md:px-5 border-b border-[#2A2E35] relative z-10">
+        <div className="h-16 flex items-center justify-between px-4 md:px-5 border-b border-outline-variant relative z-10">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-8 h-8 rounded bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary font-bold border border-primary/20">
               J
             </div>
-            {!isCollapsed && (
+            {(!isCollapsed || isMobileOpen) && (
               <span className="text-lg font-bold font-display tracking-tight text-primary whitespace-nowrap">
                 JupeTrack
               </span>
@@ -103,32 +143,37 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
           {/* Close mobile drawer or collapse button */}
           <div className="flex items-center">
             <button 
+              ref={closeButtonRef}
               onClick={() => setIsMobileOpen(false)}
-              className="md:hidden text-on-surface-variant hover:text-on-surface p-1"
+              aria-label="Close navigation"
+              className="flex size-11 items-center justify-center rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface md:hidden"
             >
-              <X size={18} />
+              <X aria-hidden="true" size={18} />
             </button>
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="hidden md:flex text-on-surface-variant hover:text-on-surface hover:bg-[#2A2E35]/50 p-1.5 rounded transition-colors"
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-expanded={!isCollapsed}
+              aria-controls="primary-navigation"
+              className="hidden size-9 items-center justify-center rounded text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface md:flex"
             >
-              {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+              {isCollapsed ? <ChevronRight aria-hidden="true" size={16} /> : <ChevronLeft aria-hidden="true" size={16} />}
             </button>
           </div>
         </div>
         
         {/* Navigation Items */}
-        <div className="px-3 py-4 flex-1 overflow-y-auto overflow-x-hidden space-y-4 relative z-10">
+        <nav id="primary-navigation" aria-label="Primary" className="px-3 py-4 flex-1 overflow-y-auto overflow-x-hidden space-y-4 relative z-10">
           {visibleGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="mb-4">
-              {!isCollapsed ? (
+              {!isCollapsed || isMobileOpen ? (
                 <p className="px-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2 whitespace-nowrap">
                   {group.title}
                 </p>
               ) : (
-                <div className="h-px bg-[#2A2E35] my-3" />
+                <div className="h-px bg-outline-variant my-3" />
               )}
-              <nav className="space-y-1">
+              <div className="space-y-1">
                 {group.items.map((item) => {
                   const isActive = pathname === item.path;
                   const Icon = item.icon;
@@ -136,34 +181,34 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
                     <Link
                       key={item.name}
                       href={item.path}
-                      title={isCollapsed ? item.name : undefined}
+                      title={isCollapsed && !isMobileOpen ? item.name : undefined}
                       onClick={() => setIsMobileOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded transition-all duration-300 relative overflow-hidden group ${
                         isActive 
                           ? 'bg-primary/10 text-primary border border-primary/20' 
-                          : 'text-on-surface-variant hover:text-on-surface hover:bg-[#2A2E35]/50 border border-transparent'
+                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high border border-transparent'
                       }`}
                     >
-                      <Icon size={18} className={`flex-shrink-0 transition-transform duration-300 ${isActive ? 'text-primary scale-110' : 'group-hover:scale-110'}`} />
-                      {!isCollapsed && <span className="font-medium text-[13px] whitespace-nowrap">{item.name}</span>}
+                      <Icon aria-hidden="true" size={18} className={`flex-shrink-0 transition-transform duration-300 ${isActive ? 'text-primary scale-110' : 'group-hover:scale-110'}`} />
+                      {(!isCollapsed || isMobileOpen) && <span className="font-medium text-[13px] whitespace-nowrap">{item.name}</span>}
                     </Link>
                   );
                 })}
-              </nav>
+              </div>
             </div>
           ))}
-        </div>
+        </nav>
 
         {/* Footer connected state */}
-        <div className="mt-auto p-4 border-t border-[#2A2E35] bg-surface-container-lowest relative z-10">
-          <div className={`glass-card flex items-center border-[#2A2E35] hover:border-primary/30 transition-all ${
-            isCollapsed ? 'justify-center p-2' : 'gap-3 p-3'
+        <div className="mt-auto p-4 border-t border-outline-variant bg-surface-container-lowest relative z-10">
+          <div className={`flex items-center rounded border border-outline-variant bg-surface-container-low transition-colors ${
+            isCollapsed && !isMobileOpen ? 'justify-center p-2' : 'gap-3 p-3'
           }`}>
             <div className="relative flex items-center justify-center flex-shrink-0">
               <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-primary' : 'bg-error'}`}></div>
               {isConnected && <div className="absolute w-2.5 h-2.5 rounded-full bg-primary animate-ping opacity-75"></div>}
             </div>
-            {!isCollapsed && (
+            {(!isCollapsed || isMobileOpen) && (
               <div className="text-[11px] overflow-hidden">
                 <p className="text-on-surface font-semibold leading-none mb-0.5">{isConnected ? 'Online' : 'Disconnected'}</p>
                 <p className="text-on-surface-variant leading-none truncate">
